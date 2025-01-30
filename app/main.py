@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 import uvicorn
-from app.routers import users, login
+from app.routers import users, login, receipt
 
 
 app = FastAPI()
 
 app.include_router(users.router)
 app.include_router(login.router)
+app.include_router(receipt.router)
 
 
 @app.get("/")
