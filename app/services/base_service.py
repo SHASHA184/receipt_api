@@ -54,7 +54,6 @@ class BaseService(ABC):
         Returns:
             SQLAlchemy model instance.
         """
-        print(obj.model_dump())
         entity = self.model(**obj.model_dump())
         self.db.add(entity)
         await self.db.commit()

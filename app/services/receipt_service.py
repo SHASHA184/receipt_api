@@ -1,4 +1,3 @@
-# app/services/receipt_service.py
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -16,16 +15,13 @@ class ReceiptService(BaseService):
 
     async def create(self, receipt_create: ReceiptCreate, owner_id: int):
         """Create a new receipt."""
-        # Prepare receipt data using the schema method
         receipt_data = receipt_create.prepare_receipt_data(owner_id)
 
-        # Create the receipt
         receipt = self.model(**receipt_data)
         self.db.add(receipt)
         await self.db.commit()
         await self.db.refresh(receipt)
 
-        # Add receipt items
         for item in receipt_create.products:
             receipt_item = ReceiptItem(
                 name=item.name,
@@ -84,21 +80,60 @@ class ReceiptService(BaseService):
         result = await self.db.execute(query)
         receipts = result.scalars().all()
 
-        # Для кожного чеку отримуємо товари
         receipts_with_items = []
         for receipt in receipts:
             items_query = select(ReceiptItem).filter(ReceiptItem.receipt_id == receipt.id)
             items_result = await self.db.execute(items_query)
             items = items_result.scalars().all()
 
-            # Перетворюємо товари в схему Product
             products = [
                 Product(name=item.name, price=float(item.price), quantity=item.quantity)
                 for item in items
             ]
 
-            # Створюємо схему ReceiptModel з товарами
             receipt_schema = Receipt.from_orm_with_items(receipt, products)
             receipts_with_items.append(receipt_schema)
 
         return receipts_with_items
+
+    async def get_receipt_text(self, receipt_id: int, line_length: int = 40) -> str:
+        """Generate a text representation of the receipt."""
+        receipt = await self.get(receipt_id)
+        items_query = select(ReceiptItem).filter(ReceiptItem.receipt_id == receipt_id)
+        items_result = await self.db.execute(items_query)
+        items = items_result.scalars().all()
+
+        lines = []
+        lines.append("ФОП Джонсонюк Борис".center(line_length))
+        lines.append("=" * line_length)
+
+        for item in items:
+            price_formatted = f"{item.price:,.2f}".replace(",", " ")
+            total_formatted = f"{item.total:,.2f}".replace(",", " ")
+
+            lines.append(f"{item.quantity} x {price_formatted} {total_formatted.rjust(line_length - len(f'{item.quantity} x {price_formatted} '))}")
+
+            lines.append(item.name.ljust(line_length))
+
+        lines.append("=" * line_length)
+
+        total_formatted = f"{receipt.total:,.2f}".replace(",", " ")
+        payment_amount_formatted = f"{receipt.payment_amount:,.2f}".replace(",", " ")
+        rest_formatted = f"{receipt.rest:,.2f}".replace(",", " ")
+
+        payment_type_translation = {
+            "cash": "Готівка",
+            "cashless": "Картка",
+        }
+        
+        payment_type = payment_type_translation.get(receipt.payment_type.value, receipt.payment_type.value)
+
+        lines.append(f"СУМА {total_formatted.rjust(line_length - len('СУМА '))}")
+        lines.append(f"{payment_type} {payment_amount_formatted.rjust(line_length - len(payment_type) - 1)}")
+        lines.append(f"Решта {rest_formatted.rjust(line_length - len('Решта '))}")
+        lines.append("=" * line_length)
+
+        lines.append(receipt.created_at.strftime("%d.%m.%Y %H:%M").center(line_length))
+        lines.append("Дякуємо за покупку!".center(line_length))
+
+        return "\n".join(lines)
