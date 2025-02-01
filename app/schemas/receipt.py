@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 from app.enums.receipt_payment import PaymentType
+from pydantic import model_validator, field_validator
 
 
 class Product(BaseModel):
@@ -9,10 +10,20 @@ class Product(BaseModel):
     price: float
     quantity: int
 
+    @field_validator("price")
+    def round_price(cls, value):
+        """Round the price to two decimal places."""
+        return round(value, 2)
+
 
 class Payment(BaseModel):
     type: PaymentType
     amount: float
+
+    @field_validator("amount")
+    def round_amount(cls, value):
+        """Round the payment amount to two decimal places."""
+        return round(value, 2)
 
 
 class ReceiptCreate(BaseModel):
@@ -28,6 +39,20 @@ class ReceiptCreate(BaseModel):
     def rest(self) -> float:
         """Calculate the rest (change) based on the payment amount."""
         return self.payment.amount - self.total
+
+    @model_validator
+    def validate_payment_amount(cls, values):
+        """Validate that the payment amount is not less than the total cost of products."""
+        products = values.get("products")
+        payment = values.get("payment")
+
+        total = sum(item.price * item.quantity for item in products)
+        if payment.amount < total:
+            raise ValueError(
+                "The payment amount cannot be less than the total cost of products."
+            )
+
+        return values
 
     def prepare_receipt_data(self, owner_id: int) -> dict:
         """Prepare the data for creating a Receipt model."""
