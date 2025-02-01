@@ -11,9 +11,20 @@ class Product(BaseModel):
     quantity: int
 
     @field_validator("price")
-    def round_price(cls, value):
-        """Round the price to two decimal places."""
-        return round(value, 2)
+    def validate_price(cls, value):
+        """Validate that the product price is greater than zero."""
+        if value <= 0:
+            raise ValueError("The product price must be greater than zero.")
+        
+        return value
+    
+    @field_validator("quantity")
+    def validate_quantity(cls, value):
+        """Validate that the product quantity is greater than zero."""
+        if value <= 0:
+            raise ValueError("The product quantity must be greater than zero.")
+        
+        return value
 
 
 class Payment(BaseModel):
@@ -40,19 +51,16 @@ class ReceiptCreate(BaseModel):
         """Calculate the rest (change) based on the payment amount."""
         return self.payment.amount - self.total
 
-    @model_validator
-    def validate_payment_amount(cls, values):
+    @model_validator(mode="after")
+    def validate_payment_amount(self):
         """Validate that the payment amount is not less than the total cost of products."""
-        products = values.get("products")
-        payment = values.get("payment")
 
-        total = sum(item.price * item.quantity for item in products)
-        if payment.amount < total:
+        if self.payment.amount < self.total:
             raise ValueError(
                 "The payment amount cannot be less than the total cost of products."
             )
-
-        return values
+        
+        return self
 
     def prepare_receipt_data(self, owner_id: int) -> dict:
         """Prepare the data for creating a Receipt model."""
