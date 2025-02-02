@@ -60,3 +60,11 @@ async def get_receipt_text(
     receipt_service = ReceiptService(db)
     receipt_text = await receipt_service.get_receipt_text(receipt_id, line_length)
     return Response(content=receipt_text, media_type="text/plain")
+
+
+@router.get("/{receipt_id}", response_model=Receipt)
+async def get_receipt(
+    receipt_id: int, db: AsyncSession = Depends(get_db)
+):
+    receipt_service = ReceiptService(db)
+    return await receipt_service.get_receipt(receipt_id)

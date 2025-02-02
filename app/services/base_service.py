@@ -27,24 +27,26 @@ class BaseService(ABC):
         """
         return await self.get_entity_or_404(self.model, id)
 
-    async def get_entity_or_404(self, model, id):
+    async def get_entity_or_404(self, model, id, options=None):
         """
         Get an entity by ID or raise a 404 error if it doesn't exist.
         Args:
             model: SQLAlchemy model.
             id (int): Entity ID.
+            options: Опции загрузки отношений.
         Returns:
             SQLAlchemy model instance.
         Raises:
             EntityNotFoundException: If the entity doesn't exist.
         """
         query = select(model).filter(model.id == id)
-        entity = await self.db.execute(query)
-        entity = entity.scalars().first()
+        if options:
+            query = query.options(*options)
+        result = await self.db.execute(query)
+        entity = result.scalars().first()
         if entity is None:
             raise EntityNotFoundException(model.__name__)
         return entity
-
 
     async def create(self, obj: BaseModel):
         """

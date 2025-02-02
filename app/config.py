@@ -21,6 +21,30 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
+    def TEST_SQLALCHEMY_DATABASE_URL(self) -> PostgresDsn:
+        return MultiHostUrl.build(
+            scheme="postgresql+asyncpg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path="test_db",
+        )
+
+    @computed_field
+    @property
+    def SYNC_TEST_SQLALCHEMY_DATABASE_URL(self) -> PostgresDsn:
+        return MultiHostUrl.build(
+            scheme="postgresql",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path="test_db",
+        )
+
+    @computed_field
+    @property
     def SQLALCHEMY_DATABASE_URL(self) -> PostgresDsn:
         return MultiHostUrl.build(
             scheme="postgresql+asyncpg",
@@ -28,9 +52,9 @@ class Settings(BaseSettings):
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB
+            path=self.POSTGRES_DB,
         )
-    
+
     @computed_field
     @property
     def SYNC_SQLALCHEMY_DATABASE_URL(self) -> PostgresDsn:
@@ -40,7 +64,7 @@ class Settings(BaseSettings):
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB
+            path=self.POSTGRES_DB,
         )
 
     SECRET_KEY: str

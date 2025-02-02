@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 
 class UserService(BaseService):
-    def __init__(self, db):
+    def __init__(self, db: AsyncSession):
         super().__init__(db, User)
 
     async def create(self, user: UserCreate):
@@ -17,7 +17,7 @@ class UserService(BaseService):
         user = User(**user.to_dict())
         self.db.add(user)
         await self.db.commit()
-        print(user.__dict__)
+        await self.db.refresh(user)
         return user
     
     async def update(self, id, user_update: UserUpdate):

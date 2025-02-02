@@ -8,9 +8,13 @@ from app.config import settings
 from sqlalchemy.ext.declarative import declarative_base
 
 
-engine = create_async_engine(str(settings.SQLALCHEMY_DATABASE_URL), future=True, echo=False)
+engine = create_async_engine(
+    str(settings.SQLALCHEMY_DATABASE_URL), future=True, echo=False
+)
 
-sync_engine = create_engine(str(settings.SYNC_SQLALCHEMY_DATABASE_URL), future=True, echo=False)
+sync_engine = create_engine(
+    str(settings.SYNC_SQLALCHEMY_DATABASE_URL), future=True, echo=False
+)
 
 async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 

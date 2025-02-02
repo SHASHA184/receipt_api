@@ -2,34 +2,17 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 from app.enums.receipt_payment import PaymentType
-from pydantic import model_validator, field_validator
+from pydantic import model_validator, field_validator, Field
 
 
 class Product(BaseModel):
-    name: str
-    price: float
-    quantity: int
-
-    @field_validator("price")
-    def validate_price(cls, value):
-        """Validate that the product price is greater than zero."""
-        if value <= 0:
-            raise ValueError("The product price must be greater than zero.")
-        
-        return value
-    
-    @field_validator("quantity")
-    def validate_quantity(cls, value):
-        """Validate that the product quantity is greater than zero."""
-        if value <= 0:
-            raise ValueError("The product quantity must be greater than zero.")
-        
-        return value
-
+    name: str = Field(..., min_length=1, max_length=255, description="The name of the product.")
+    price: float = Field(..., gt=0, description="The price of the product.")
+    quantity: int = Field(..., gt=0, description="The quantity of the product.")
 
 class Payment(BaseModel):
-    type: PaymentType
-    amount: float
+    type: PaymentType = Field(..., description="The type of payment.")
+    amount: float = Field(..., gt=0, description="The payment amount.")
 
     @field_validator("amount")
     def round_amount(cls, value):
@@ -38,8 +21,8 @@ class Payment(BaseModel):
 
 
 class ReceiptCreate(BaseModel):
-    products: List[Product]
-    payment: Payment
+    products: List[Product] = Field(..., min_length=1, description="The list of products.")
+    payment: Payment = Field(..., description="The payment information.")
 
     @property
     def total(self) -> float:
@@ -75,11 +58,11 @@ class ReceiptCreate(BaseModel):
 
 
 class Receipt(ReceiptCreate):
-    id: int
-    total: float
-    rest: float
-    created_at: datetime
-    owner_id: int
+    id: int = Field(..., description="The ID of the receipt.")
+    total: float = Field(..., description="The total cost of products.")
+    rest: float = Field(..., description="The rest (change) based on the payment amount.")
+    created_at: datetime = Field(..., description="The date and time of the receipt creation.")
+    owner_id: int = Field(..., description="The ID of the receipt owner.")
 
     class Config:
         from_attributes = True

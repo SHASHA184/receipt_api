@@ -7,6 +7,7 @@ from app.schemas.receipt import ReceiptCreate, Product, Receipt
 from app.enums.receipt_payment import PaymentType
 from app.services.base_service import BaseService
 from typing import List, Optional
+from sqlalchemy.orm import selectinload
 
 
 class ReceiptService(BaseService):
@@ -82,7 +83,9 @@ class ReceiptService(BaseService):
 
         receipts_with_items = []
         for receipt in receipts:
-            items_query = select(ReceiptItem).filter(ReceiptItem.receipt_id == receipt.id)
+            items_query = select(ReceiptItem).filter(
+                ReceiptItem.receipt_id == receipt.id
+            )
             items_result = await self.db.execute(items_query)
             items = items_result.scalars().all()
 
@@ -98,10 +101,11 @@ class ReceiptService(BaseService):
 
     async def get_receipt_text(self, receipt_id: int, line_length: int = 40) -> str:
         """Generate a text representation of the receipt."""
-        receipt = await self.get(receipt_id)
-        items_query = select(ReceiptItem).filter(ReceiptItem.receipt_id == receipt_id)
-        items_result = await self.db.execute(items_query)
-        items = items_result.scalars().all()
+        receipt = await self.get_entity_or_404(
+            self.model, receipt_id, options=[selectinload(self.model.items)]
+        )
+
+        items = receipt.items
 
         lines = []
         lines.append("ФОП Джонсонюк Борис".center(line_length))
@@ -111,7 +115,9 @@ class ReceiptService(BaseService):
             price_formatted = f"{item.price:,.2f}".replace(",", " ")
             total_formatted = f"{item.total:,.2f}".replace(",", " ")
 
-            lines.append(f"{item.quantity} x {price_formatted} {total_formatted.rjust(line_length - len(f'{item.quantity} x {price_formatted} '))}")
+            lines.append(
+                f"{item.quantity} x {price_formatted} {total_formatted.rjust(line_length - len(f'{item.quantity} x {price_formatted} '))}"
+            )
 
             lines.append(item.name.ljust(line_length))
 
@@ -125,11 +131,15 @@ class ReceiptService(BaseService):
             "cash": "Готівка",
             "cashless": "Картка",
         }
-        
-        payment_type = payment_type_translation.get(receipt.payment_type.value, receipt.payment_type.value)
+
+        payment_type = payment_type_translation.get(
+            receipt.payment_type.value, receipt.payment_type.value
+        )
 
         lines.append(f"СУМА {total_formatted.rjust(line_length - len('СУМА '))}")
-        lines.append(f"{payment_type} {payment_amount_formatted.rjust(line_length - len(payment_type) - 1)}")
+        lines.append(
+            f"{payment_type} {payment_amount_formatted.rjust(line_length - len(payment_type) - 1)}"
+        )
         lines.append(f"Решта {rest_formatted.rjust(line_length - len('Решта '))}")
         lines.append("=" * line_length)
 
@@ -137,3 +147,14 @@ class ReceiptService(BaseService):
         lines.append("Дякуємо за покупку!".center(line_length))
 
         return "\n".join(lines)
+
+    async def get_receipt(self, receipt_id: int):
+        receipt = await self.get_entity_or_404(self.model, receipt_id, options=[selectinload(self.model.items)])
+
+        products = [
+            Product(name=item.name, price=float(item.price), quantity=item.quantity)
+            for item in receipt.items
+        ]
+
+        receipt_schema = Receipt.from_orm_with_items(receipt, products)
+        return receipt_schema
