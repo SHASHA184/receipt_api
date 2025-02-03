@@ -1,8 +1,5 @@
 import pytest
-import httpx
 import uuid
-
-BASE_URL = "http://localhost:8000"
 
 @pytest.mark.asyncio
 async def test_register_and_login(client):
