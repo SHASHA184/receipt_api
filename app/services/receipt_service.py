@@ -8,6 +8,7 @@ from app.enums.receipt_payment import PaymentType
 from app.services.base_service import BaseService
 from typing import List, Optional
 from sqlalchemy.orm import selectinload
+from fastapi import HTTPException
 
 
 class ReceiptService(BaseService):
@@ -148,8 +149,13 @@ class ReceiptService(BaseService):
 
         return "\n".join(lines)
 
-    async def get_receipt(self, receipt_id: int):
-        receipt = await self.get_entity_or_404(self.model, receipt_id, options=[selectinload(self.model.items)])
+    async def get_receipt(self, receipt_id: int, owner_id: int) -> Receipt:
+        receipt = await self.get_entity_or_404(
+            self.model, receipt_id, options=[selectinload(self.model.items)]
+        )
+
+        if receipt.owner_id != owner_id:
+            raise HTTPException(status_code=403, detail="Access forbidden")
 
         products = [
             Product(name=item.name, price=float(item.price), quantity=item.quantity)

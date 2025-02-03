@@ -9,22 +9,22 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
 
-# Создаем синхронный движок для управления БД (PostgreSQL требует синхронных команд CREATE DATABASE)
+# Create a synchronous engine for database management (PostgreSQL requires synchronous CREATE DATABASE commands)
 admin_engine = create_engine(
     str(settings.SYNC_SQLALCHEMY_DATABASE_URL), isolation_level="AUTOCOMMIT"
 )
 
-# Асинхронный движок для тестовой базы
+# Asynchronous engine for the test database
 engine = create_async_engine(
     str(settings.TEST_SQLALCHEMY_DATABASE_URL), echo=True, poolclass=NullPool
 )
 
-# Сессия для тестов
+# Session for tests
 TestingSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 def create_test_database():
-    """Создает тестовую БД, если её нет."""
+    """Creates a test database if it does not exist."""
     with admin_engine.connect() as conn:
         try:
             db_name = str(settings.SYNC_TEST_SQLALCHEMY_DATABASE_URL).rsplit("/", 1)[-1]
@@ -37,24 +37,24 @@ def create_test_database():
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_database():
     """
-    Пересоздает схему базы перед тестами и удаляет после.
+    Recreates the database schema before tests and deletes it after.
     """
-    create_test_database()  # Создаем тестовую БД (синхронно)
+    create_test_database()  # Create the test database (synchronously)
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)  # Удаляем старые таблицы
-        await conn.run_sync(Base.metadata.create_all)  # Создаем новые таблицы
+        await conn.run_sync(Base.metadata.drop_all)  # Drop old tables
+        await conn.run_sync(Base.metadata.create_all)  # Create new tables
 
     yield
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)  # Удаляем БД после тестов
+        await conn.run_sync(Base.metadata.drop_all)  # Drop the database after tests
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def clean_db(db: AsyncSession):
     """
-    Очищает базу данных перед каждым тестом.
+    Cleans the database before each test.
     """
     tables = ["users", "receipts", "receipt_items"]
     for table in tables:
@@ -65,7 +65,7 @@ async def clean_db(db: AsyncSession):
 @pytest_asyncio.fixture
 async def db():
     """
-    Предоставляет изолированную сессию БД для тестов.
+    Provides an isolated database session for tests.
     """
     async with TestingSessionLocal() as session:
         yield session
@@ -75,7 +75,7 @@ async def db():
 @pytest_asyncio.fixture(scope="function")
 async def client(db: AsyncSession):
     """
-    Создает FastAPI тестовый клиент с тестовой БД.
+    Creates a FastAPI test client with a test database.
     """
 
     def override_get_db():

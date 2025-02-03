@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.schemas.user import UserCreate, UserUpdate
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from app.utils import verify_password
 from sqlalchemy.orm import selectinload
 
@@ -16,9 +17,15 @@ class UserService(BaseService):
         """Create a new user."""
         user = User(**user.to_dict())
         self.db.add(user)
-        await self.db.commit()
-        await self.db.refresh(user)
-        return user
+        try:
+            await self.db.commit()
+            await self.db.refresh(user)
+            return user
+        except IntegrityError as e:
+            await self.db.rollback()
+            if "unique constraint" in str(e.orig):
+                raise HTTPException(status_code=400, detail="User with this email already exists")
+            raise HTTPException(status_code=500, detail="Database error")
     
     async def update(self, id, user_update: UserUpdate):
         """Update a user."""
